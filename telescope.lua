@@ -132,7 +132,10 @@ assertions = {}
 -- @usage <tt>make_assertion("equal", "%s to be equal to %s", function(a, b)
 -- return a == b end)</tt>
 -- @see assertions
-function make_assertion(name, message, func)
+function make_assertion(name, message, func, extra_message_func)
+  
+  extra_message_func = extra_message_func or function() return ""; end
+  
   local neg_message = string.gsub(message, " to be ", " not to be ")
   local num_vars = 0
   -- if the last vararg ends up nil, we'll need to pad the table with nils so
@@ -145,7 +148,7 @@ function make_assertion(name, message, func)
       table.insert(a, tostring(args[i]))
     end
     while num_vars > 0 and #a ~= num_vars do table.insert(a, 'nil') end
-    return string.format(assertion_message_prefix .. message, unpack(a))
+    return string.format(assertion_message_prefix .. extra_message_func(...) .. message, unpack(a))
   end
   assertions["assert_" .. name] = function(...)
     if assertion_callback then assertion_callback(...) end
@@ -217,7 +220,41 @@ end
 
 make_assertion("blank",        "'%s' to be blank",                         function(a) return a == '' or a == nil end)
 make_assertion("empty",        "'%s' to be an empty table",                function(a) return not next(a) end)
-make_assertion("equal",        "'%s' to be equal to '%s'",                 function(a, b) return a == b end)
+make_assertion("equal",        "'%s' to be equal to '%s'",                 function(a, b) return a == b end, function(a,b)
+    if (type(b) == "string") then
+        if (type(a) ~= "string") then
+            return "string equality, actual type was: " .. type(a) .. ".  expected ";
+        end
+        
+        local position = 1;
+        local line = 1;
+        local column = 1;
+
+        while (position <= string.len(b)) do
+
+            if (position > string.len(a)) then
+                return "string equality, actual string is shorter than expected by " .. (string.len(b) - string.len(a)) .. " characters.  expected ";
+            end
+
+            if (string.byte(a, position) ~= string.byte(b, position)) then
+            
+                return "string equality, difference from actual at character " .. position .. ", line " .. line .. ", column " .. column .. ".  expected ";
+            end
+
+            if (string.sub(a, position, position) == "\n") then
+                column = 0;
+                line = line + 1;
+            end
+            
+            position = position + 1;
+            column = column + 1;
+        end
+
+        return "string equality, actual is longer than expected by " .. (string.len(a) - string.len(b)) .. " characters.  expected ";
+    end
+
+    return "";
+end)
 make_assertion("error",        "result to be an error",                    function(f) return not pcall(f) end)
 make_assertion("false",        "'%s' to be false",                         function(a) return a == false end)
 make_assertion("greater_than", "'%s' to be greater than '%s'",             function(a, b) return a > b end)
