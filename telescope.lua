@@ -276,6 +276,20 @@ make_assertion("equal",
     function(a, b) return a == b end
 )
 make_assertion("error",        "result to be an error",                    function(f) return not pcall(f) end)
+
+local lastSuccess = nil;
+local lastErrorMessage = nil;
+make_assertion("error_matches",function(_ignored, f, m)
+        if (lastSuccess) then
+            return "Assert failed: error was expected.";
+        else
+            return "Assert failed: error seen did not match expected message, expected '" .. tostring(m) .. "' actual was '" .. lastErrorMessage .. "'.";
+        end
+    end,                   
+    function(f, m) 
+        lastSuccess, lastErrorMessage = pcall(f); 
+        return not lastSuccess and string.match(lastErrorMessage, tostring(m)); 
+    end)
 make_assertion("false",        "'%s' to be false",                         function(a) return a == false end)
 make_assertion("greater_than", "'%s' to be greater than '%s'",             function(a, b) return a > b end)
 make_assertion("gte",          "'%s' to be greater than or equal to '%s'", function(a, b) return a >= b end)
